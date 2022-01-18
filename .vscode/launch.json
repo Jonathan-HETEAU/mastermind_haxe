@@ -1,0 +1,13 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"type": "hl",
+			"request": "launch",
+			"hxml": "compile.hxml",
+			"name": "HashLink",
+			"cwd": "${workspaceFolder}",
+			"preLaunchTask": "Build"
+		}
+	]
+}
