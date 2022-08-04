@@ -1,6 +1,5 @@
 -cp src
 -lib heaps
--lib hlsdl
--hl Mastermind.hl
+-js public/js/Mastermind.js
 -main Main
 -debug
