@@ -1,5 +1,5 @@
 -cp src
 -lib heaps
--js public/js/Mastermind.js
+-js Mastermind.js
 -main Main
 -debug
