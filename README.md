@@ -12,7 +12,7 @@ Installer la lib Heaps.io
 
 `haxelib install heaps`
 
-Le principe du langage Haxe et qu'il compile vers d'autre langage ici dans
+Le principe du langage Haxe et qu'il compile vers d'autres langages ici dans
 le fichier **compile.hxml** je précise que je souhaite cibler le javascript.
 
 `haxe compile.hxml`
