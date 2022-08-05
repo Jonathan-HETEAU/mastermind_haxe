@@ -2,6 +2,8 @@
 
 Simple adaptation du jeu Mastermind avec le moteur de jeu [Heaps.io](https://heaps.io/) utilisé et maintenu par le studio [ShiroGames](https://shirogames.com/).
 
+[Jouer!](https://mastermind-haxe.netlify.app/)
+
 ## Compilation
 
 il faut installer [Haxe](https://haxe.org/download/) sur votre machine.
