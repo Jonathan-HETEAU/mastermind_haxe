@@ -1,0 +1,4 @@
+compile_base.hxml
+-js build/js/Mastermind.js
+--cmd cp favicon.ico build/js/
+--cmd cp index.html build/js/

@@ -1,0 +1,4 @@
+compile_base.hxml
+-debug
+-lib hlsdl
+-hl build/hl/main.hl

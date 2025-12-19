@@ -2,12 +2,20 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"type": "hl",
+			"name": "Dev",
 			"request": "launch",
-			"hxml": "compile.hxml",
-			"name": "HashLink",
+			"type": "hl",
 			"cwd": "${workspaceFolder}",
-			"preLaunchTask": "Build"
-		}
+			"preLaunchTask": "compile-dev",
+			"program": "${workspaceFolder}/build/hl/main.hl"
+		},
+        {
+            "name": "JS (Chrome)",
+            "type": "chrome",
+            "request": "launch",
+            "preLaunchTask": "compile-js",
+            "url": "http://127.0.0.1:5500/build/js/index.html",
+            "webRoot": "${workspaceFolder}/build/js"
+        }
 	]
 }

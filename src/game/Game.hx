@@ -1,5 +1,6 @@
 package game;
 
+import hxd.BitmapData;
 import h2d.Scene;
 import h2d.Tile;
 import h2d.Object;
@@ -52,6 +53,7 @@ class Game {
 	private var TILE_SELECTION:Tile;
 	private var TILE_RESTART:Tile;
 	private var TILE_PIONS:Map<Color, Tile>;
+	private var CURSOR_PIONS:Map<Color, BitmapData>;
 
 	static function defaultGenerator():Code {
 		var colors:Array<Color> = [Black, White, Yellow, Blue, Red, Green];
@@ -115,6 +117,14 @@ class Game {
 			Green => hxd.Res.Image.pion_vert.toTile(),
 			Yellow => hxd.Res.Image.pion_jaune.toTile(),
 		];
+		this.CURSOR_PIONS = [
+			Red => hxd.Res.Image.pion_rouge.toBitmap(),
+			Black => hxd.Res.Image.pion_noir.toBitmap(),
+			White => hxd.Res.Image.pion_blanc.toBitmap(),
+			Blue => hxd.Res.Image.pion_bleu.toBitmap(),
+			Green => hxd.Res.Image.pion_vert.toBitmap(),
+			Yellow => hxd.Res.Image.pion_jaune.toBitmap(),
+		];
 	}
 
 	private function drawBoardGame() {
@@ -160,7 +170,6 @@ class Game {
 				this.currentPion = Some(color);
 				this.selectionObject.visible = true;
 				this.selectionObject.x = position;
-				trace("selected: " + color);
 			}
 			bitmap.x = p;
 			p += CELL_SIZE;
@@ -180,6 +189,7 @@ class Game {
 				interaction.onClick = function(event:hxd.Event) {
 					setPion(r, c);
 				}
+				
 			}
 		}
 		this.tryObject = new Object(this.rowsObject);
@@ -192,12 +202,9 @@ class Game {
 		this.resultsObject.y = y;
 
 		for (r in 0...NBR_TRIES) {
-			for (x in 0...Std.int(CODE_SIZE / 2))
-				for (y in 0...2) {
-					var tile = new Bitmap(TILE_CELL_MINI, this.resultsObject);
-					tile.x = x * RESULT_SIZE;
-					tile.y = (r * CELL_SIZE) + (y * RESULT_SIZE);
-				}
+			var bitmap = new Bitmap(TILE_SECRET, this.resultsObject);
+			bitmap.x = 0;
+			bitmap.y = (r * CELL_SIZE);
 		}
 	}
 
@@ -212,9 +219,9 @@ class Game {
 
 	private function drawMenu() {}
 
+	public function update() {}
+
 	private function setPion(row:Int, colun:Int) {
-		trace("row:" + row + " colun:" + colun);
-		trace("tries.length:" + tries.length);
 		if (state == Play) {
 			if (NBR_TRIES - row - 1 == tries.length) {
 				currentTry[colun] = this.currentPion;
@@ -234,10 +241,9 @@ class Game {
 					bitmap.x = i * CELL_SIZE;
 					count++;
 				case None:
-					trace("");
 			}
 		}
-		trace("count:" + count + " CODE_SIZE:" + CODE_SIZE);
+
 		if (count == CODE_SIZE) {
 			var bitmap = new Bitmap(TILE_VALIDATE, tryObject);
 			bitmap.x = CODE_SIZE * CELL_SIZE;
@@ -300,6 +306,13 @@ class Game {
 	private function setResult(newRows:Row) {
 		var y = (NBR_TRIES - this.tries.length - 1) * CELL_SIZE;
 		var count = 0;
+
+		for (x in 0...Std.int(CODE_SIZE / 2))
+			for (j in 0...2) {
+				var tile = new Bitmap(TILE_CELL_MINI, this.resultsObject);
+				tile.x = x * RESULT_SIZE;
+				tile.y = y + (j * RESULT_SIZE);
+			}
 
 		for (i in 0...newRows.good) {
 			var bitmap = new Bitmap(TILE_RES_GOOD, this.resultsObject);

@@ -2,19 +2,20 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"type": "hxml",
-			"label": "Build",
-			"file": "compile.hxml",
-			"problemMatcher": [
-				"$haxe-absolute",
-				"$haxe",
-				"$haxe-error",
-				"$haxe-trace"
-			],
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			},
+			"label": "compile-dev",
+			"type": "shell",
+			"command": "haxe",
+			"args": ["compile_dev.hxml"],
+			"group": "build",
+			"problemMatcher": ["$haxe"]
+		},
+		{
+			"label": "compile-js",
+			"type": "shell",
+			"command": "haxe",
+			"args": ["compile_js.hxml"],
+			"group": "build",
+			"problemMatcher": ["$haxe"]
 		}
 	]
 }

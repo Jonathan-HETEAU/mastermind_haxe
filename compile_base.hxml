@@ -1,5 +1,3 @@
 -cp src
 -lib heaps
--js Mastermind.js
 -main Main
--debug
