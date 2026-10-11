@@ -1,51 +1,32 @@
-import game.Game;
+import view.BoardView;
 
+/**
+	Entry point: the application and the life of the games.
 
-
-enum State {
-	Game;
-	Exit;
-	Restart;
-}
-
-typedef CurrentState = {
-	state:State,
-	scene:Game
-}
-
+	The board is drawn on a virtual screen of `BoardView.WIDTH` x `BoardView.HEIGHT` pixels, scaled
+	to the window with `LetterBox` (black bars, same aspect ratio): the game code never deals with
+	the real size of the window.
+**/
 class Main extends hxd.App {
-	private var state:CurrentState;
+	var game:Game;
 
 	override function init() {
 		hxd.Window.getInstance().title = "Mastermind";
-		switchState(Game);
+		s2d.scaleMode = LetterBox(BoardView.WIDTH, BoardView.HEIGHT);
+		newGame();
 	}
 
-	public function switchState(state:State) {
-		switch state {
-			case Game | Restart:
-				var controller = new game.GameController();
-				controller.menu = function() {
-					this.switchState(Exit);
-				}
-				controller.restart = function() {
-					this.switchState(Restart);
-				}
-				this.state = {state: Game, scene: new Game(controller)};
-			case Exit:
-				hxd.System.exit();
-		}
-		this.state.scene.init(this);
-		setScene(this.state.scene.getScene());
-	}
-
-	override function update(deltat:Float) {
-		super.update(deltat);
+	/** Replaces the current game, if any, by a new one with a new secret. **/
+	function newGame() {
+		if (game != null)
+			game.dispose();
+		game = new Game(s2d);
+		game.onRestart = newGame;
 	}
 
 	static function main() {
+		// Resources embedded in the program (res/ folder): nothing to load at run time, works on every target.
 		hxd.Res.initEmbed();
-
 		new Main();
 	}
 }
