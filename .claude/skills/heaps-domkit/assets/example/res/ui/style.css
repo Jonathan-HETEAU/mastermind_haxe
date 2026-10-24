@@ -1,0 +1,53 @@
+@title-font: url("ui/customFont.fnt");
+
+hud {
+	padding: 8;
+	background: rgba(0, 0, 0, 0.5);
+}
+
+hud text {
+	color: #FFD080;
+}
+
+menu {
+	layout: vertical;
+	content-align: middle top;
+	padding: 12 24;
+	vspacing: 6;
+	background: #102040 0.8;
+	min-width: 200;
+
+	.title {
+		font: @title-font;
+		color: white;
+		margin-bottom: 6;
+	}
+
+	.hint {
+		color: #8090A0;
+	}
+}
+
+button {
+	padding: 4 12;
+	min-width: 140;
+	content-align: middle middle;
+	background: #304060;
+	transition: background 0.2;
+
+	text {
+		color: #A0B0C0;
+	}
+
+	&.selected {
+		background: #5070A0;
+		text {
+			color: white;
+			text-shadow: 1 1 #000000;
+		}
+	}
+
+	&:hover {
+		background: #406080;
+	}
+}

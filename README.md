@@ -40,3 +40,11 @@ Le détail des choix (et ce qui a changé par rapport à la première version) e
 
 ![Capture d'écran 1](public/img/1.jpeg)
 ![Capture d'écran 2](public/img/2.jpeg)
+
+## Skills Claude Code
+
+`.claude/skills/heaps-*` : les skills du plugin `heaps` de
+[Heapheapheaps](https://github.com/Jonathan-HETEAU/Heapheapheaps) (installation, API, bonnes
+pratiques, DomKit, Hide, HxBit, hlsteam, tests dans un navigateur sans écran), copiés ici pour que
+Claude Code les utilise aussi dans les sessions cloud. Pour les mettre à jour, depuis un clone de
+Heapheapheaps : `plugins/heaps/install-skills.sh <ce dépôt>`.

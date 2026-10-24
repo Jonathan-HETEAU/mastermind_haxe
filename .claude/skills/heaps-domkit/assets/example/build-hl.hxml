@@ -1,0 +1,9 @@
+-cp src
+-lib heaps
+-lib domkit
+--macro domkit.Macros.registerComponentsPath("ui.$Comp")
+# Unknown CSS properties and invalid values become compilation errors (src/CssCheck.hx).
+--macro CssCheck.check("res/ui/style.css")
+-lib hlsdl
+-main Main
+-hl bin/game.hl
