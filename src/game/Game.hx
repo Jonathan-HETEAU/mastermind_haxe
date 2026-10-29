@@ -1,34 +1,12 @@
 package game;
 
+import haxe.ds.Option;
 import hxd.BitmapData;
 import h2d.Scene;
 import h2d.Tile;
 import h2d.Object;
 import h2d.Bitmap;
-
-enum Color {
-	Black;
-	White;
-	Yellow;
-	Blue;
-	Red;
-	Green;
-}
-
-enum Maybe<T> {
-	None;
-	Some(value:T);
-}
-
-enum State {
-	Play;
-	Pause;
-	End;
-	Restart;
-}
-
-typedef Code = Array<Color>;
-typedef Row = {code:Code, good:Int, bad:Int};
+import model.Mastermind;
 
 class GameController {
 	public var menu:() -> Void;
@@ -37,6 +15,10 @@ class GameController {
 	public function new() {}
 }
 
+/**
+	Draws a `Mastermind` and turns the clicks into actions on it. The view never changes the
+	board by itself: after each action, `redraw` rebuilds everything that depends on the state.
+**/
 class Game {
 	private static var CELL_SIZE:Int = 128;
 	private static var RESULT_SIZE:Int = 64;
@@ -55,38 +37,26 @@ class Game {
 	private var TILE_PIONS:Map<Color, Tile>;
 	private var CURSOR_PIONS:Map<Color, BitmapData>;
 
-	static function defaultGenerator():Code {
-		var colors:Array<Color> = [Black, White, Yellow, Blue, Red, Green];
-		return [for (c in 0...CODE_SIZE) colors[Std.random(colors.length)]];
-	}
+	private var mastermind:Mastermind;
+	/** The color picked in the palette, put in the next cell clicked. **/
+	private var currentPion:Option<Color> = None;
 
-	private var state:State;
-	private var secretCode:Code;
-	private var tries:Array<Row>;
-	private var currentTry:Array<Maybe<Color>>;
-	private var currentPion:Maybe<Color>;
-
-	private var tryObject:Object;
-	private var secretObject:Object;
-	private var pionsObject:Object;
-	private var rowsObject:Object;
-	private var resultsObject:Object;
-	private var selectionObject:Object;
-
-	public var generator:() -> Code = defaultGenerator;
+	/** Everything that depends on the state: rebuilt by `redraw`. **/
+	private var board:Object;
 
 	private var gameController:GameController;
 	private var scene:Scene;
 
-	public function new(controller:GameController) {
+	public function new(controller:GameController, ?seed:Int) {
 		this.scene = new Scene();
 		this.scene.scaleMode = ScaleMode.LetterBox(6 * CELL_SIZE, 12 * CELL_SIZE);
 		this.gameController = controller;
-		this.state = Play;
-		this.secretCode = generator();
-		this.currentTry = [for (i in 0...CODE_SIZE) Maybe.None];
-		this.tries = [];
-		this.currentPion = None;
+		if (seed == null)
+			seed = Std.random(0x7FFFFFFE) + 1;
+		this.mastermind = new Mastermind(Mastermind.randomCode(new Random(seed), CODE_SIZE), NBR_TRIES);
+		#if (js && debug)
+		(cast js.Browser.window).game = this;
+		#end
 	}
 
 	public function init(game:Main) {
@@ -94,6 +64,8 @@ class Game {
 		drawBoardGame();
 		drawRestart();
 		drawMenu();
+		this.board = new Object(this.scene);
+		redraw();
 	}
 
 	public function getScene():Scene {
@@ -127,6 +99,7 @@ class Game {
 		];
 	}
 
+	/** The parts of the board that never change: backgrounds, cells and palette. **/
 	private function drawBoardGame() {
 		this.drawSecretObject(RESULT_SIZE, 0, this.scene);
 		this.drawPionsObject(0, (NBR_TRIES + 1) * CELL_SIZE, this.scene);
@@ -135,28 +108,20 @@ class Game {
 	}
 
 	private function drawSecretObject(x:Float, y:Float, parent:Object) {
-		this.secretObject = new Object(parent);
-		this.secretObject.x = x;
-		this.secretObject.y = y;
+		var secretObject = new Object(parent);
+		secretObject.setPosition(x, y);
 		for (c in 0...CODE_SIZE) {
-			var bitmap = new Bitmap(TILE_SECRET, this.secretObject);
-			bitmap.x = c * CELL_SIZE;
-			var bitmap = new Bitmap(TILE_PIONS[this.secretCode[c]], this.secretObject);
-			bitmap.visible = false;
+			var bitmap = new Bitmap(TILE_SECRET, secretObject);
 			bitmap.x = c * CELL_SIZE;
 		}
 	}
 
 	private function drawPionsObject(x:Float, y:Float, parent:Object) {
-		this.pionsObject = new Object(parent);
-		this.pionsObject.x = x;
-		this.pionsObject.y = y;
-
-		this.selectionObject = new Bitmap(TILE_SELECTION, pionsObject);
-		this.selectionObject.visible = false;
-		var p = 0;
-		for (color => tile in TILE_PIONS) {
-			var bitmap = new Bitmap(tile, pionsObject);
+		var pionsObject = new Object(parent);
+		pionsObject.setPosition(x, y);
+		for (p => color in Mastermind.COLORS) {
+			var bitmap = new Bitmap(TILE_PIONS[color], pionsObject);
+			bitmap.x = p * CELL_SIZE;
 			bitmap.alpha = 0.7;
 			var interaction = new h2d.Interactive(CELL_SIZE, CELL_SIZE, bitmap);
 			interaction.onOver = function(event:hxd.Event) {
@@ -165,46 +130,35 @@ class Game {
 			interaction.onOut = function(event:hxd.Event) {
 				bitmap.alpha = 0.7;
 			}
-			var position = p;
 			interaction.onClick = function(event:hxd.Event) {
 				this.currentPion = Some(color);
-				this.selectionObject.visible = true;
-				this.selectionObject.x = position;
+				redraw();
 			}
-			bitmap.x = p;
-			p += CELL_SIZE;
 		}
 	}
 
 	private function drawRows(x:Float, y:Float, parent:Object) {
-		this.rowsObject = new Object(this.scene);
-		this.rowsObject.x = x;
-		this.rowsObject.y = y;
+		var rowsObject = new Object(parent);
+		rowsObject.setPosition(x, y);
 		for (r in 0...NBR_TRIES) {
 			for (c in 0...CODE_SIZE) {
-				var bitmap = new Bitmap(TILE_CELL, this.rowsObject);
+				var bitmap = new Bitmap(TILE_CELL, rowsObject);
 				bitmap.x = c * CELL_SIZE;
 				bitmap.y = r * CELL_SIZE;
 				var interaction = new h2d.Interactive(CELL_SIZE, CELL_SIZE, bitmap);
 				interaction.onClick = function(event:hxd.Event) {
 					setPion(r, c);
 				}
-				
 			}
 		}
-		this.tryObject = new Object(this.rowsObject);
-		this.tryObject.y = (NBR_TRIES - 1) * CELL_SIZE;
 	}
 
 	private function drawResults(x:Float, y:Float, parent:Object) {
-		this.resultsObject = new Object(parent);
-		this.resultsObject.x = x;
-		this.resultsObject.y = y;
-
+		var resultsObject = new Object(parent);
+		resultsObject.setPosition(x, y);
 		for (r in 0...NBR_TRIES) {
-			var bitmap = new Bitmap(TILE_SECRET, this.resultsObject);
-			bitmap.x = 0;
-			bitmap.y = (r * CELL_SIZE);
+			var bitmap = new Bitmap(TILE_SECRET, resultsObject);
+			bitmap.y = r * CELL_SIZE;
 		}
 	}
 
@@ -221,112 +175,82 @@ class Game {
 
 	public function update() {}
 
-	private function setPion(row:Int, colun:Int) {
-		if (state == Play) {
-			if (NBR_TRIES - row - 1 == tries.length) {
-				currentTry[colun] = this.currentPion;
-				this.refreshTry();
-			}
-		}
+	/** The rows fill from the bottom: try `i` is on screen row `NBR_TRIES - 1 - i`. **/
+	private static function rowY(tryIndex:Int):Float {
+		return CELL_SIZE + (NBR_TRIES - 1 - tryIndex) * CELL_SIZE;
 	}
 
-	private function refreshTry() {
-		tryObject.y = (NBR_TRIES - this.tries.length - 1) * CELL_SIZE;
-		tryObject.removeChildren();
-		var count = 0;
-		for (i in 0...CODE_SIZE) {
-			switch currentTry[i] {
-				case Some(color):
-					var bitmap = new Bitmap(TILE_PIONS[color], tryObject);
-					bitmap.x = i * CELL_SIZE;
-					count++;
-				case None:
-			}
-		}
-
-		if (count == CODE_SIZE) {
-			var bitmap = new Bitmap(TILE_VALIDATE, tryObject);
-			bitmap.x = CODE_SIZE * CELL_SIZE;
-			var interaction = new h2d.Interactive(CELL_SIZE, CELL_SIZE, bitmap);
-			interaction.onClick = function(event:hxd.Event) {
-				this.validate();
-			}
+	private function setPion(row:Int, column:Int) {
+		// Only the cells of the row being filled can be changed.
+		if (NBR_TRIES - 1 - row == mastermind.tries.length) {
+			mastermind.place(column, this.currentPion);
+			redraw();
 		}
 	}
 
 	private function validate() {
-		var good = 0;
-		var bad = 0;
-
-		var test = [for (i in 0...CODE_SIZE) Black];
-
-		for (i in 0...CODE_SIZE) {
-			switch currentTry[i] {
-				case Some(color):
-					test[i] = color;
-				case None:
-					test[i] = Black;
+		for (event in mastermind.validate())
+			switch event {
+				case GameWon:
+					trace('game won in ${mastermind.tries.length} tries');
+				case GameLost:
+					trace('game lost');
+				default:
 			}
-		}
-
-		var badMap = new Map<Color, Int>();
-		var goodMap = new Map<Color, Int>();
-
-		for (color in TILE_PIONS.keys()) {
-			goodMap.set(color, 0);
-			badMap.set(color, 0);
-		}
-
-		for (i in 0...CODE_SIZE) {
-			if (test[i] == secretCode[i]) {
-				good++;
-			} else {
-				goodMap[secretCode[i]]++;
-				badMap[test[i]]++;
-			}
-		}
-
-		for (color in TILE_PIONS.keys()) {
-			bad += Std.int(Math.min(goodMap[color], badMap[color]));
-		}
-
-		this.setResult({code: test, bad: bad, good: good});
-
-		this.tryObject.removeChild(this.tryObject.getChildAt(4));
-		if (good == CODE_SIZE || this.tries.length == NBR_TRIES) {
-			state = End;
-			for (child in this.secretObject.iterator()) {
-				child.visible = true;
-			}
-		}
-		this.tryObject = new Object(this.rowsObject);
-		this.tryObject.y = (NBR_TRIES - this.tries.length - 1) * CELL_SIZE;
+		redraw();
 	}
 
-	private function setResult(newRows:Row) {
-		var y = (NBR_TRIES - this.tries.length - 1) * CELL_SIZE;
-		var count = 0;
+	/** Rebuilds everything that depends on the state of the game and on the selected color. **/
+	private function redraw() {
+		board.removeChildren();
 
-		for (x in 0...Std.int(CODE_SIZE / 2))
-			for (j in 0...2) {
-				var tile = new Bitmap(TILE_CELL_MINI, this.resultsObject);
-				tile.x = x * RESULT_SIZE;
-				tile.y = y + (j * RESULT_SIZE);
+		var palette = Mastermind.COLORS;
+		switch currentPion {
+			case Some(color):
+				var selection = new Bitmap(TILE_SELECTION, board);
+				selection.setPosition(palette.indexOf(color) * CELL_SIZE, (NBR_TRIES + 1) * CELL_SIZE);
+			case None:
+		}
+
+		for (i => row in mastermind.tries) {
+			for (c => color in row.code)
+				drawPion(color, RESULT_SIZE + c * CELL_SIZE, rowY(i));
+			drawResult(row, rowY(i));
+		}
+
+		if (mastermind.state == Play) {
+			var y = rowY(mastermind.tries.length);
+			for (c => cell in mastermind.current)
+				switch cell {
+					case Some(color):
+						drawPion(color, RESULT_SIZE + c * CELL_SIZE, y);
+					case None:
+				}
+			if (mastermind.isComplete()) {
+				var bitmap = new Bitmap(TILE_VALIDATE, board);
+				bitmap.setPosition(RESULT_SIZE + CODE_SIZE * CELL_SIZE, y);
+				var interaction = new h2d.Interactive(CELL_SIZE, CELL_SIZE, bitmap);
+				interaction.onClick = function(event:hxd.Event) {
+					validate();
+				}
 			}
-
-		for (i in 0...newRows.good) {
-			var bitmap = new Bitmap(TILE_RES_GOOD, this.resultsObject);
-			bitmap.x = (count % 2) * RESULT_SIZE;
-			bitmap.y = y + (Std.int(count / 2) * RESULT_SIZE);
-			count++;
+		} else {
+			for (c => color in mastermind.secret)
+				drawPion(color, RESULT_SIZE + c * CELL_SIZE, 0);
 		}
-		for (i in 0...newRows.bad) {
-			var bitmap = new Bitmap(TILE_RES_BAD, this.resultsObject);
-			bitmap.x = (count % 2) * RESULT_SIZE;
-			bitmap.y = y + (Std.int(count / 2) * RESULT_SIZE);
-			count++;
-		}
+	}
 
-		this.tries.push(newRows);
+	private function drawPion(color:Color, x:Float, y:Float) {
+		new Bitmap(TILE_PIONS[color], board).setPosition(x, y);
+	}
+
+	/** The good and bad pegs of a validated row, two by two. **/
+	private function drawResult(row:Row, y:Float) {
+		var x = RESULT_SIZE + CODE_SIZE * CELL_SIZE;
+		for (i in 0...CODE_SIZE)
+			new Bitmap(TILE_CELL_MINI, board).setPosition(x + (i % 2) * RESULT_SIZE, y + Std.int(i / 2) * RESULT_SIZE);
+		var pegs = [for (i in 0...row.good) TILE_RES_GOOD].concat([for (i in 0...row.bad) TILE_RES_BAD]);
+		for (i => tile in pegs)
+			new Bitmap(tile, board).setPosition(x + (i % 2) * RESULT_SIZE, y + Std.int(i / 2) * RESULT_SIZE);
 	}
 }

@@ -13,14 +13,21 @@ Installer la lib Heaps.io
 `haxelib install heaps`
 
 Le principe du langage Haxe et qu'il compile vers d'autres langages ici dans
-le fichier **compile.hxml** je précise que je souhaite cibler le javascript.
+le fichier **compile_js.hxml** je précise que je souhaite cibler le javascript.
 
-`haxe compile.hxml`
+`haxe compile_js.hxml`
 
 
 On peut creer autant de fichier **hxml** qu'on souhaite de language cible.
 
-Ouvrez index.html dans un navigateur
+Ouvrez build/js/index.html dans un navigateur
+
+## Tests
+
+Les règles du jeu (`src/model/Mastermind.hx`) ne dépendent pas de Heaps : elles se testent
+sans fenêtre, avec l'interpréteur de Haxe.
+
+`haxe test.hxml`
 
 ## Capture d'écran
 
