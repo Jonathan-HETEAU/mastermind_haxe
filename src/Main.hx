@@ -20,6 +20,8 @@ class Main extends hxd.App {
 
 	override function init() {
 		hxd.Window.getInstance().title = "Mastermind";
+		// The bands around the board, when the screen is not as tall as the game, are dark walnut.
+		engine.backgroundColor = 0x1A0F08;
 		controls = new Controls();
 		switchState(Game);
 	}

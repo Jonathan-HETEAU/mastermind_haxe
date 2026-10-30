@@ -6,7 +6,7 @@ inlaid with gilt fillets, brass fittings and pions turned in fine stones.
     python3 tools/art/make_art.py        (needs Pillow and numpy)
 
 Everything is procedural and seeded: running it again gives the same files. Writes into
-res/Image (tiles and background) and res/fonts (bitmap fonts made from Playfair Display, see
+res/Image (tiles and background), web (icons of the page) and res/fonts (bitmap fonts made from Playfair Display, see
 tools/art/fonts/OFL.txt).
 """
 import os
@@ -501,6 +501,21 @@ def panel(rng, w, h):
     return rgba(col, np.ones((h, w)) * 0.96)
 
 
+def icon(rng, size):
+    """The icon of the page, for the home screen: four stones on marble in a walnut frame."""
+    n = 512
+    col = walnut(rng, n, n)
+    m = inside(n, n, (40, 40, n - 40, n - 40))
+    fillet = inside(n, n, (32, 32, n - 32, n - 32)) - m
+    col = col * (1 - fillet[..., None]) + gilt(blur(fillet, 1.5), rng) * fillet[..., None]
+    col = col * (1 - m[..., None]) + marble(rng, n, n) * (m * (1 - 0.25 * (1 - rect_bevel(n, n, (40, 40, n - 40, n - 40), 16)) ** 2))[..., None]
+    im = rgba(col, np.ones((n, n)))
+    for i, kind in enumerate(("ruby", "lapis", "malachite", "amber")):
+        ball = sphere(kind, rng, 200, 72)
+        im.alpha_composite(ball, (56 + (i % 2) * 200, 56 + (i // 2) * 200))
+    return im.resize((size, size), Image.LANCZOS)
+
+
 # --- Bitmap fonts -------------------------------------------------------------------------
 
 CHARS = [chr(c) for c in range(32, 127)] + list("àâäçéèêëîïôöùûüÿœæÀÂÄÇÉÈÊËÎÏÔÖÙÛÜŸŒÆ«»’…€°")
@@ -568,6 +583,10 @@ def main():
     save(gilt_frame(rng, CELL, 8, 5), "selection.png")
     save(lid(rng, CODE_SIZE * CELL, CELL, 12), "lid.png")
     save(panel(rng, 704, 400), "panel.png")
+    web = os.path.join(ROOT, "web")
+    for size in (192, 512):
+        icon(np.random.default_rng(1851), size).convert("RGB").save(os.path.join(web, f"icon-{size}.png"), optimize=True)
+        print("wrote", f"web/icon-{size}.png")
     playfair = os.path.join(HERE, "fonts", "PlayfairDisplay.ttf")
     bitmap_font("title", os.path.join(HERE, "fonts", "PlayfairDisplaySC-Bold.ttf"), 104, "Bold")
     bitmap_font("text", playfair, 46, "Regular")

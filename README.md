@@ -4,6 +4,22 @@ Simple adaptation du jeu Mastermind avec le moteur de jeu [Heaps.io](https://hea
 
 [Jouer!](https://mastermind-haxe.netlify.app/)
 
+## Version web et mobile
+
+Chaque push publie le jeu sur GitHub Pages (workflow `.github/workflows/pages.yml`, branche
+`gh-pages`) :
+
+- `master` : https://jonathan-heteau.github.io/mastermind_haxe/
+- toute autre branche : `https://jonathan-heteau.github.io/mastermind_haxe/preview/<branche>/`
+
+Une seule fois, dans les réglages du dépôt : *Settings > Pages > Build and deployment*, source
+*Deploy from a branch*, branche `gh-pages`, dossier `/ (root)`.
+
+Sur mobile, le jeu se joue au doigt, en portrait, et suit les rotations et la barre d'adresse.
+Le bouton en haut à droite passe en plein écran (Android, ordinateur). Sur iPhone, qui n'a pas
+de plein écran dans Safari, *Partager > Sur l'écran d'accueil* ouvre le jeu sans barre
+d'adresse.
+
 ## Commandes
 
 | Action | Souris | Clavier | Manette |

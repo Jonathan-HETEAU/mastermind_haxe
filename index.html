@@ -1,18 +1,70 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 
 <head>
 	<meta charset="utf-8" />
 	<title>Mastermind</title>
-	<!-- Sans hauteur sur html et body, le canvas garde sa hauteur par défaut (150 px) et le jeu est minuscule. -->
-	<style>html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #000; } #webgl { width: 100%; height: 100%; }</style>
+	<!-- Mobile : pas de zoom ni de défilement, le jeu occupe tout l'écran, y compris sous l'encoche. -->
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+	<meta name="theme-color" content="#1a0f08" />
+	<!-- Ajouté à l'écran d'accueil, le jeu s'ouvre en plein écran (seul plein écran possible sur iPhone). -->
+	<meta name="mobile-web-app-capable" content="yes" />
+	<meta name="apple-mobile-web-app-capable" content="yes" />
+	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+	<meta name="apple-mobile-web-app-title" content="Mastermind" />
+	<link rel="manifest" href="manifest.webmanifest" />
+	<link rel="icon" href="favicon.ico" />
+	<link rel="apple-touch-icon" href="icon-192.png" />
+	<style>
+		html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #1a0f08; overscroll-behavior: none; }
+		/* Sans hauteur sur html et body, le canvas garderait sa hauteur par défaut (150 px).
+		   100dvh suit la barre d'adresse des navigateurs mobiles qui apparaît et disparaît. */
+		#webgl { display: block; touch-action: none;
+			-webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
+		#fullscreen { position: fixed; top: max(8px, env(safe-area-inset-top)); right: max(8px, env(safe-area-inset-right));
+			width: 40px; height: 40px; padding: 0; border: 2px solid #c8a060; border-radius: 50%;
+			background: rgba(26, 15, 8, 0.75); color: #e8cc88; font-size: 20px; line-height: 36px; cursor: pointer; }
+		#fullscreen[hidden] { display: none; }
+	</style>
 </head>
 
 <body>
 
-	<!-- globalEvents="1" : le jeu reçoit le clavier sans clic préalable sur le canvas. -->
-	<canvas id="webgl" globalEvents="1"></canvas>
+	<!-- globalEvents="1" : le jeu reçoit le clavier sans clic préalable sur le canvas.
+	     La taille en ligne (style) est nécessaire : sans elle, Heaps fige la taille du canvas en pixels
+	     au démarrage, et le jeu ne suit plus les rotations ni les redimensionnements. -->
+	<canvas id="webgl" globalEvents="1" style="width: 100vw; height: 100vh; height: 100dvh"></canvas>
+	<button id="fullscreen" title="Plein écran" aria-label="Plein écran" hidden>⛶</button>
 	<script type="text/javascript" src="Mastermind.js"></script>
+	<script>
+		// Plein écran à la demande (le navigateur exige un geste du joueur). Absent sur iPhone, où
+		// « Ajouter à l'écran d'accueil » ouvre le jeu sans barre d'adresse grâce aux balises ci-dessus.
+		(function() {
+			var root = document.documentElement;
+			var button = document.getElementById("fullscreen");
+			var request = root.requestFullscreen || root.webkitRequestFullscreen;
+			var standalone = window.matchMedia("(display-mode: standalone), (display-mode: fullscreen)").matches || navigator.standalone;
+			function current() { return document.fullscreenElement || document.webkitFullscreenElement; }
+			function refresh() { button.hidden = !request || standalone || !!current(); }
+			// Heaps écoute le tactile sur toute la fenêtre et annule le touchend, ce qui supprimerait le
+			// clic du bouton : ses événements tactiles ne remontent pas jusqu'au jeu.
+			["touchstart", "touchend"].forEach(function(type) {
+				button.addEventListener(type, function(e) { e.stopPropagation(); });
+			});
+			button.addEventListener("click", function() {
+				var p = request.call(root, { navigationUI: "hide" });
+				// Sur mobile, garder le plateau en portrait une fois en plein écran.
+				if (p && p.then)
+					p.then(function() {
+						if (screen.orientation && screen.orientation.lock)
+							screen.orientation.lock("portrait").catch(function() {});
+					}).catch(function() {});
+			});
+			document.addEventListener("fullscreenchange", refresh);
+			document.addEventListener("webkitfullscreenchange", refresh);
+			refresh();
+		})();
+	</script>
 
 </body>
 

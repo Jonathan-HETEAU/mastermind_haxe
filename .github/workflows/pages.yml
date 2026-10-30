@@ -1,0 +1,60 @@
+# Builds the web version and publishes it with GitHub Pages, on the gh-pages branch:
+# master at the root of the site, any other branch under preview/<branch>/ (to try it on a
+# phone before merging). Settings > Pages: "Deploy from a branch", gh-pages, / (root).
+name: Pages
+
+on:
+  push:
+    branches-ignore: [gh-pages]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# One publication at a time: they all push to gh-pages.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: krdlab/setup-haxe@v1
+        with:
+          haxe-version: 4.3.7
+
+      # The versions the game is tested with: Heaps from git (the haxelib releases are too old).
+      - name: Install Heaps
+        run: |
+          haxelib install format 3.8.0 --always
+          haxelib git heaps https://github.com/HeapsIO/heaps --always
+          git -C "$(haxelib libpath heaps)" checkout 4fbe423b574cfec26cce53a8cacbaeb1e498f6cd
+
+      - name: Test the rules
+        run: haxe test.hxml
+
+      - name: Build for the web
+        run: haxe compile_js.hxml
+
+      - name: Choose the folder
+        id: target
+        run: |
+          if [ "$GITHUB_REF_NAME" = "master" ]; then
+            echo "dir=" >> "$GITHUB_OUTPUT"
+          else
+            echo "dir=preview/$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish on gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: build/js
+          destination_dir: ${{ steps.target.outputs.dir }}
+          # Keep the other branches' previews (and master's root).
+          keep_files: true
+          commit_message: "Publier ${{ github.ref_name }}"
