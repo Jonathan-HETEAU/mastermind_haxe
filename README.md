@@ -43,6 +43,21 @@ sans fenêtre, avec l'interpréteur de Haxe.
 
 `haxe test.hxml`
 
+## Graphismes
+
+Style victorien : coffret en noyer, plateau en marbre de Calacatta incrusté de filets dorés,
+ferrures en laiton, pions en pierres fines (onyx, ivoire, ambre, lapis-lazuli, rubis, malachite)
+posés dans un plateau de velours. Les fiches dorées marquent les pions bien placés, les fiches
+argentées les pions mal placés.
+
+Toutes les images de `res/Image` et les polices de `res/fonts` sont générées par un script,
+procédural et reproductible (il faut Pillow et numpy) :
+
+`python3 tools/art/make_art.py`
+
+Les polices bitmap sont tirées de [Playfair Display](https://github.com/clauseggers/Playfair-Display)
+(licence SIL Open Font License, voir `tools/art/fonts/OFL.txt`).
+
 ## Capture d'écran
 
 ![Capture d'écran 1](public/img/1.jpeg) 

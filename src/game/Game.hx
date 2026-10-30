@@ -27,11 +27,23 @@ class Game {
 	private static var NBR_TRIES = 10;
 	private static var CODE_SIZE = 4;
 
+	/** The virtual screen, and where the board sits in the walnut case of `background.jpg`. Keep in sync with tools/art/make_art.py. **/
+	private static var SCENE_WIDTH = 848;
+	private static var SCENE_HEIGHT = 1696;
+	private static var BOARD_X = 40;
+	private static var BOARD_Y = 112;
+	/** The palette lies in its velvet tray, a little below the last row. **/
+	private static var PALETTE_Y = (NBR_TRIES + 1) * CELL_SIZE + 32;
+
+	private static var GOLD = 0xD8B468;
+	private static var IVORY = 0xEFE6CF;
+
 	private var TILE_CELL_MINI:Tile;
 	private var TILE_RES_BAD:Tile;
 	private var TILE_RES_GOOD:Tile;
 	private var TILE_CELL:Tile;
-	private var TILE_SECRET:Tile;
+	private var TILE_LID:Tile;
+	private var TILE_PANEL:Tile;
 	private var TILE_VALIDATE:Tile;
 	private var TILE_SELECTION:Tile;
 	private var TILE_RESTART:Tile;
@@ -44,6 +56,8 @@ class Game {
 	/** The cell of the current row that the keyboard and the gamepad act on. **/
 	private var cursor:Int = 0;
 
+	/** The board, in the case drawn by the background. **/
+	private var root:Object;
 	/** Everything that depends on the state: rebuilt by `redraw`. **/
 	private var board:Object;
 	/** The player closed the end of game panel to look at the board. **/
@@ -54,7 +68,9 @@ class Game {
 
 	public function new(controller:GameController, ?seed:Int) {
 		this.scene = new Scene();
-		this.scene.scaleMode = ScaleMode.LetterBox(6 * CELL_SIZE, 12 * CELL_SIZE);
+		this.scene.scaleMode = ScaleMode.LetterBox(SCENE_WIDTH, SCENE_HEIGHT);
+		// Filtered textures: the art is drawn smooth, and shown smaller than drawn on most screens.
+		this.scene.defaultSmooth = true;
 		this.gameController = controller;
 		if (seed == null)
 			seed = Std.random(0x7FFFFFFE) + 1;
@@ -66,10 +82,13 @@ class Game {
 
 	public function init(game:Main) {
 		initRessources();
+		new Bitmap(hxd.Res.Image.background.toTile(), this.scene);
+		this.root = new Object(this.scene);
+		this.root.setPosition(BOARD_X, BOARD_Y);
 		drawBoardGame();
 		drawRestart();
 		drawMenu();
-		this.board = new Object(this.scene);
+		this.board = new Object(this.root);
 		redraw();
 	}
 
@@ -82,7 +101,8 @@ class Game {
 		this.TILE_RES_BAD = hxd.Res.Image.bad.toTile();
 		this.TILE_RES_GOOD = hxd.Res.Image.good.toTile();
 		this.TILE_CELL = hxd.Res.Image.cell.toTile();
-		this.TILE_SECRET = hxd.Res.Image.secret.toTile();
+		this.TILE_LID = hxd.Res.Image.lid.toTile();
+		this.TILE_PANEL = hxd.Res.Image.panel.toTile();
 		this.TILE_SELECTION = hxd.Res.Image.selection.toTile();
 		this.TILE_VALIDATE = hxd.Res.Image.validate.toTile();
 		this.TILE_RESTART = hxd.Res.Image.restart.toTile();
@@ -104,19 +124,20 @@ class Game {
 		];
 	}
 
-	/** The parts of the board that never change: backgrounds, cells and palette. **/
+	/** The parts of the board that never change: holes and palette. **/
 	private function drawBoardGame() {
-		this.drawSecretObject(RESULT_SIZE, 0, this.scene);
-		this.drawPionsObject(0, (NBR_TRIES + 1) * CELL_SIZE, this.scene);
-		this.drawResults((CODE_SIZE * CELL_SIZE) + RESULT_SIZE, CELL_SIZE, this.scene);
-		this.drawRows(RESULT_SIZE, CELL_SIZE, this.scene);
+		this.drawSecretObject(RESULT_SIZE, 0, this.root);
+		this.drawPionsObject(0, PALETTE_Y, this.root);
+		this.drawResults((CODE_SIZE * CELL_SIZE) + RESULT_SIZE, CELL_SIZE, this.root);
+		this.drawRows(RESULT_SIZE, CELL_SIZE, this.root);
 	}
 
+	/** The holes of the secret code, under the walnut lid while the game goes on. **/
 	private function drawSecretObject(x:Float, y:Float, parent:Object) {
 		var secretObject = new Object(parent);
 		secretObject.setPosition(x, y);
 		for (c in 0...CODE_SIZE) {
-			var bitmap = new Bitmap(TILE_SECRET, secretObject);
+			var bitmap = new Bitmap(TILE_CELL, secretObject);
 			bitmap.x = c * CELL_SIZE;
 		}
 	}
@@ -127,13 +148,12 @@ class Game {
 		for (p => color in Mastermind.COLORS) {
 			var bitmap = new Bitmap(TILE_PIONS[color], pionsObject);
 			bitmap.x = p * CELL_SIZE;
-			bitmap.alpha = 0.7;
 			var interaction = new h2d.Interactive(CELL_SIZE, CELL_SIZE, bitmap);
 			interaction.onOver = function(event:hxd.Event) {
-				bitmap.alpha = 1;
+				bitmap.color.set(1.25, 1.25, 1.25);
 			}
 			interaction.onOut = function(event:hxd.Event) {
-				bitmap.alpha = 0.7;
+				bitmap.color.set(1, 1, 1);
 			}
 			interaction.onClick = function(event:hxd.Event) {
 				this.currentPion = Some(color);
@@ -161,14 +181,13 @@ class Game {
 	private function drawResults(x:Float, y:Float, parent:Object) {
 		var resultsObject = new Object(parent);
 		resultsObject.setPosition(x, y);
-		for (r in 0...NBR_TRIES) {
-			var bitmap = new Bitmap(TILE_SECRET, resultsObject);
-			bitmap.y = r * CELL_SIZE;
-		}
+		for (r in 0...NBR_TRIES)
+			for (i in 0...CODE_SIZE)
+				new Bitmap(TILE_CELL_MINI, resultsObject).setPosition((i % 2) * RESULT_SIZE, r * CELL_SIZE + Std.int(i / 2) * RESULT_SIZE);
 	}
 
 	private function drawRestart() {
-		var bitmap = new Bitmap(TILE_RESTART, this.scene);
+		var bitmap = new Bitmap(TILE_RESTART, this.root);
 		bitmap.x = RESULT_SIZE + (CELL_SIZE * CODE_SIZE);
 		var interaction = new h2d.Interactive(CELL_SIZE, CELL_SIZE, bitmap);
 		interaction.onClick = function(event:hxd.Event) {
@@ -271,7 +290,7 @@ class Game {
 		switch currentPion {
 			case Some(color):
 				var selection = new Bitmap(TILE_SELECTION, board);
-				selection.setPosition(palette.indexOf(color) * CELL_SIZE, (NBR_TRIES + 1) * CELL_SIZE);
+				selection.setPosition(palette.indexOf(color) * CELL_SIZE, PALETTE_Y);
 			case None:
 		}
 
@@ -282,6 +301,8 @@ class Game {
 		}
 
 		if (mastermind.state == Play) {
+			// The lid is a little larger than the holes it hides: 12 pixels on each side.
+			new Bitmap(TILE_LID, board).setPosition(RESULT_SIZE - 12, -12);
 			var y = rowY(mastermind.tries.length);
 			for (c => cell in mastermind.current)
 				switch cell {
@@ -311,16 +332,12 @@ class Game {
 		on the panel closes it, to look at the board.
 	**/
 	private function drawEndPanel() {
-		var width = (CODE_SIZE + 1) * CELL_SIZE + RESULT_SIZE;
-		var height = 3 * CELL_SIZE;
+		var width = TILE_PANEL.width;
+		var height = TILE_PANEL.height;
 		var panel = new Object(board);
-		panel.setPosition((6 * CELL_SIZE - width) / 2, 4 * CELL_SIZE);
+		panel.setPosition((SCENE_WIDTH - 2 * BOARD_X - width) / 2, 4 * CELL_SIZE - 40);
 
-		var background = new h2d.Graphics(panel);
-		background.beginFill(0x000000, 0.85);
-		background.lineStyle(4, 0xC8A060);
-		background.drawRect(0, 0, width, height);
-		background.endFill();
+		new Bitmap(TILE_PANEL, panel);
 		var close = new h2d.Interactive(width, height, panel);
 		close.onClick = function(event:hxd.Event) {
 			this.endPanelHidden = true;
@@ -329,36 +346,38 @@ class Game {
 
 		var tries = mastermind.tries.length;
 		if (mastermind.state == Won) {
-			drawText("Gagné !", 8, 40, width, panel);
-			drawText('Code trouvé en $tries ${tries == 1 ? "coup" : "coups"}', 3, 150, width, panel);
+			drawText("Gagné !", hxd.Res.fonts.title.toFont(), GOLD, 34, width, panel);
+			drawText('Code trouvé en $tries ${tries == 1 ? "coup" : "coups"}', hxd.Res.fonts.text.toFont(), IVORY, 170, width, panel);
 		} else {
-			drawText("Perdu !", 8, 40, width, panel);
-			drawText("Le code est révélé en haut", 3, 150, width, panel);
+			drawText("Perdu !", hxd.Res.fonts.title.toFont(), GOLD, 34, width, panel);
+			drawText("Le code secret est dévoilé en haut", hxd.Res.fonts.text.toFont(), IVORY, 170, width, panel);
 		}
 
-		var replay = drawText("Rejouer", 5, 220, width, panel);
-		replay.textColor = 0xC8A060;
+		var replay = drawText("Rejouer", hxd.Res.fonts.title.toFont(), GOLD, 252, width, panel);
+		replay.setScale(0.6);
+		replay.maxWidth = width / 0.6;
 		var bounds = replay.getBounds(panel);
 		var interaction = new h2d.Interactive(bounds.width, bounds.height, panel);
 		interaction.setPosition(bounds.x, bounds.y);
 		interaction.onOver = function(event:hxd.Event) {
-			replay.textColor = 0xFFFFFF;
+			replay.textColor = IVORY;
 		}
 		interaction.onOut = function(event:hxd.Event) {
-			replay.textColor = 0xC8A060;
+			replay.textColor = GOLD;
 		}
 		interaction.onClick = function(event:hxd.Event) {
 			this.gameController.restart();
 		}
-		drawText("ou Entrée, Espace, manette A", 2, 310, width, panel).textColor = 0xA0A0A0;
+		drawText("ou Entrée, Espace, manette A", hxd.Res.fonts.small.toFont(), 0xB8A888, 338, width, panel);
 	}
 
-	/** A line of text centered in `width`, with the default font scaled `scale` times. **/
-	private function drawText(text:String, scale:Int, y:Float, width:Float, parent:Object):h2d.Text {
-		var t = new h2d.Text(hxd.res.DefaultFont.get(), parent);
-		t.setScale(scale);
-		t.maxWidth = width / scale;
+	/** A line of text centered in `width`, with a soft shadow under it. **/
+	private function drawText(text:String, font:h2d.Font, color:Int, y:Float, width:Float, parent:Object):h2d.Text {
+		var t = new h2d.Text(font, parent);
+		t.maxWidth = width;
 		t.textAlign = Center;
+		t.textColor = color;
+		t.dropShadow = {dx: 2, dy: 3, color: 0x000000, alpha: 0.6};
 		t.text = text;
 		t.y = y;
 		return t;
@@ -368,11 +387,9 @@ class Game {
 		new Bitmap(TILE_PIONS[color], board).setPosition(x, y);
 	}
 
-	/** The good and bad pegs of a validated row, two by two. **/
+	/** The good (gold) and bad (silver) pegs of a validated row, two by two. **/
 	private function drawResult(row:Row, y:Float) {
 		var x = RESULT_SIZE + CODE_SIZE * CELL_SIZE;
-		for (i in 0...CODE_SIZE)
-			new Bitmap(TILE_CELL_MINI, board).setPosition(x + (i % 2) * RESULT_SIZE, y + Std.int(i / 2) * RESULT_SIZE);
 		var pegs = [for (i in 0...row.good) TILE_RES_GOOD].concat([for (i in 0...row.bad) TILE_RES_BAD]);
 		for (i => tile in pegs)
 			new Bitmap(tile, board).setPosition(x + (i % 2) * RESULT_SIZE, y + Std.int(i / 2) * RESULT_SIZE);
