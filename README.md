@@ -4,6 +4,20 @@ Simple adaptation du jeu Mastermind avec le moteur de jeu [Heaps.io](https://hea
 
 [Jouer!](https://mastermind-haxe.netlify.app/)
 
+## Commandes
+
+| Action | Souris | Clavier | Manette |
+|---|---|---|---|
+| Choisir une couleur | clic sur la palette | Haut / Bas (ou Z / S, W / S) | croix ou stick haut / bas |
+| Choisir et poser une couleur | | 1 à 6 | |
+| Déplacer le curseur | | Gauche / Droite (ou Q / D, A / D) | croix ou stick gauche / droite |
+| Poser la couleur | clic sur une case | Espace | A |
+| Effacer | clic sans couleur choisie | Retour arrière, Suppr | B ou X |
+| Valider la ligne | bouton V | Entrée | Y |
+| Recommencer | bouton R | R | Back / Select |
+
+En fin de partie, Entrée, Espace ou A relancent une partie.
+
 ## Compilation
 
 il faut installer [Haxe](https://haxe.org/download/) sur votre machine.

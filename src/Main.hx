@@ -15,9 +15,12 @@ typedef CurrentState = {
 
 class Main extends hxd.App {
 	private var state:CurrentState;
+	/** Created once: each game gets the actions, a restart does not add listeners. **/
+	private var controls:Controls;
 
 	override function init() {
 		hxd.Window.getInstance().title = "Mastermind";
+		controls = new Controls();
 		switchState(Game);
 	}
 
@@ -41,6 +44,9 @@ class Main extends hxd.App {
 
 	override function update(deltat:Float) {
 		super.update(deltat);
+		// A restart replaces the game while it handles an action: read the current one each time.
+		for (action in controls.pressed())
+			this.state.scene.onAction(action);
 	}
 
 	static function main() {

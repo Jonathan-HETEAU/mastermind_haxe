@@ -16,8 +16,9 @@ class GameController {
 }
 
 /**
-	Draws a `Mastermind` and turns the clicks into actions on it. The view never changes the
-	board by itself: after each action, `redraw` rebuilds everything that depends on the state.
+	Draws a `Mastermind` and turns the clicks and the actions of `Controls` into moves on it. The
+	view never changes the board by itself: after each move, `redraw` rebuilds everything that
+	depends on the state.
 **/
 class Game {
 	private static var CELL_SIZE:Int = 128;
@@ -40,6 +41,8 @@ class Game {
 	private var mastermind:Mastermind;
 	/** The color picked in the palette, put in the next cell clicked. **/
 	private var currentPion:Option<Color> = None;
+	/** The cell of the current row that the keyboard and the gamepad act on. **/
+	private var cursor:Int = 0;
 
 	/** Everything that depends on the state: rebuilt by `redraw`. **/
 	private var board:Object;
@@ -185,14 +188,72 @@ class Game {
 	private function setPion(row:Int, column:Int) {
 		// Only the cells of the row being filled can be changed.
 		if (NBR_TRIES - 1 - row == mastermind.tries.length) {
-			mastermind.place(column, this.currentPion);
+			placeAt(column);
 			redraw();
 		}
+	}
+
+	/** Puts the selected color in a cell (or empties it when none is selected), then moves the cursor after it. **/
+	private function placeAt(column:Int) {
+		mastermind.place(column, this.currentPion);
+		cursor = currentPion == None ? column : Std.int(Math.min(column + 1, CODE_SIZE - 1));
+	}
+
+	/** An action of the keyboard or of a gamepad, from `Controls`. **/
+	public function onAction(action:Controls.Action) {
+		if (mastermind.state != Play) {
+			switch action {
+				case Validate | Place | Restart:
+					this.gameController.restart();
+				default:
+			}
+			return;
+		}
+		switch action {
+			case Left:
+				cursor = (cursor + CODE_SIZE - 1) % CODE_SIZE;
+			case Right:
+				cursor = (cursor + 1) % CODE_SIZE;
+			case PrevColor:
+				selectColor(-1);
+			case NextColor:
+				selectColor(1);
+			case PickColor(index):
+				currentPion = Some(Mastermind.COLORS[index]);
+				placeAt(cursor);
+			case Place:
+				if (currentPion != None)
+					placeAt(cursor);
+			case Erase:
+				// Like a backspace: on an empty cell, erase the one before.
+				if (mastermind.current[cursor] == None && cursor > 0)
+					cursor--;
+				mastermind.place(cursor, None);
+			case Validate:
+				validate();
+				return;
+			case Restart:
+				this.gameController.restart();
+				return;
+		}
+		redraw();
+	}
+
+	/** Moves the selection of the palette by `step` colors, around the palette. **/
+	private function selectColor(step:Int) {
+		var colors = Mastermind.COLORS;
+		var index = switch currentPion {
+			case Some(color): (colors.indexOf(color) + step + colors.length) % colors.length;
+			case None: step > 0 ? 0 : colors.length - 1;
+		}
+		currentPion = Some(colors[index]);
 	}
 
 	private function validate() {
 		for (event in mastermind.validate())
 			switch event {
+				case RowValidated(_, _):
+					cursor = 0;
 				case GameWon:
 					trace('game won in ${mastermind.tries.length} tries');
 				case GameLost:
@@ -228,6 +289,7 @@ class Game {
 						drawPion(color, RESULT_SIZE + c * CELL_SIZE, y);
 					case None:
 				}
+			new Bitmap(TILE_SELECTION, board).setPosition(RESULT_SIZE + cursor * CELL_SIZE, y);
 			if (mastermind.isComplete()) {
 				var bitmap = new Bitmap(TILE_VALIDATE, board);
 				bitmap.setPosition(RESULT_SIZE + CODE_SIZE * CELL_SIZE, y);
@@ -274,7 +336,7 @@ class Game {
 			drawText("Le code est révélé en haut", 3, 150, width, panel);
 		}
 
-		var replay = drawText("Rejouer", 5, 230, width, panel);
+		var replay = drawText("Rejouer", 5, 220, width, panel);
 		replay.textColor = 0xC8A060;
 		var bounds = replay.getBounds(panel);
 		var interaction = new h2d.Interactive(bounds.width, bounds.height, panel);
@@ -288,6 +350,7 @@ class Game {
 		interaction.onClick = function(event:hxd.Event) {
 			this.gameController.restart();
 		}
+		drawText("ou Entrée, Espace, manette A", 2, 310, width, panel).textColor = 0xA0A0A0;
 	}
 
 	/** A line of text centered in `width`, with the default font scaled `scale` times. **/
