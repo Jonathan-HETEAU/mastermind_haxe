@@ -1,4 +1,5 @@
 /Mastermind.hl
 /Mastermind.js
 /Mastermind.js.map
-/build/res/.tmp
+/build
+/res/.tmp
