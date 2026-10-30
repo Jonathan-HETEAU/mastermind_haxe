@@ -43,6 +43,8 @@ class Game {
 
 	/** Everything that depends on the state: rebuilt by `redraw`. **/
 	private var board:Object;
+	/** The player closed the end of game panel to look at the board. **/
+	private var endPanelHidden:Bool = false;
 
 	private var gameController:GameController;
 	private var scene:Scene;
@@ -237,7 +239,66 @@ class Game {
 		} else {
 			for (c => color in mastermind.secret)
 				drawPion(color, RESULT_SIZE + c * CELL_SIZE, 0);
+			if (!endPanelHidden)
+				drawEndPanel();
 		}
+	}
+
+	/**
+		The result of the game over the empty rows, with a button to play again. A click elsewhere
+		on the panel closes it, to look at the board.
+	**/
+	private function drawEndPanel() {
+		var width = (CODE_SIZE + 1) * CELL_SIZE + RESULT_SIZE;
+		var height = 3 * CELL_SIZE;
+		var panel = new Object(board);
+		panel.setPosition((6 * CELL_SIZE - width) / 2, 4 * CELL_SIZE);
+
+		var background = new h2d.Graphics(panel);
+		background.beginFill(0x000000, 0.85);
+		background.lineStyle(4, 0xC8A060);
+		background.drawRect(0, 0, width, height);
+		background.endFill();
+		var close = new h2d.Interactive(width, height, panel);
+		close.onClick = function(event:hxd.Event) {
+			this.endPanelHidden = true;
+			redraw();
+		}
+
+		var tries = mastermind.tries.length;
+		if (mastermind.state == Won) {
+			drawText("Gagné !", 8, 40, width, panel);
+			drawText('Code trouvé en $tries ${tries == 1 ? "coup" : "coups"}', 3, 150, width, panel);
+		} else {
+			drawText("Perdu !", 8, 40, width, panel);
+			drawText("Le code est révélé en haut", 3, 150, width, panel);
+		}
+
+		var replay = drawText("Rejouer", 5, 230, width, panel);
+		replay.textColor = 0xC8A060;
+		var bounds = replay.getBounds(panel);
+		var interaction = new h2d.Interactive(bounds.width, bounds.height, panel);
+		interaction.setPosition(bounds.x, bounds.y);
+		interaction.onOver = function(event:hxd.Event) {
+			replay.textColor = 0xFFFFFF;
+		}
+		interaction.onOut = function(event:hxd.Event) {
+			replay.textColor = 0xC8A060;
+		}
+		interaction.onClick = function(event:hxd.Event) {
+			this.gameController.restart();
+		}
+	}
+
+	/** A line of text centered in `width`, with the default font scaled `scale` times. **/
+	private function drawText(text:String, scale:Int, y:Float, width:Float, parent:Object):h2d.Text {
+		var t = new h2d.Text(hxd.res.DefaultFont.get(), parent);
+		t.setScale(scale);
+		t.maxWidth = width / scale;
+		t.textAlign = Center;
+		t.text = text;
+		t.y = y;
+		return t;
 	}
 
 	private function drawPion(color:Color, x:Float, y:Float) {
