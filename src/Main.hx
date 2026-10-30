@@ -46,6 +46,8 @@ class Main extends hxd.App {
 
 	override function update(deltat:Float) {
 		super.update(deltat);
+		Audio.update(deltat);
+		this.state.scene.update(deltat);
 		// A restart replaces the game while it handles an action: read the current one each time.
 		for (action in controls.pressed())
 			this.state.scene.onAction(action);

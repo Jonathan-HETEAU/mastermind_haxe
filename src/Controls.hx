@@ -17,6 +17,8 @@ enum Action {
 	/** Validates the current row; plays again once the game is over. **/
 	Validate;
 	Restart;
+	/** Turns the sounds on or off. **/
+	ToggleSound;
 }
 
 /**
@@ -42,6 +44,7 @@ class Controls {
 		Erase => [Key.BACKSPACE, Key.DELETE],
 		Validate => [Key.ENTER, Key.NUMPAD_ENTER],
 		Restart => [Key.R],
+		ToggleSound => [Key.M],
 	];
 
 	/** The digit keys 1 to 6, on the main keyboard and the numeric keypad, pick the colors. **/
@@ -105,7 +108,7 @@ class Controls {
 			case Erase: p.isDown(c.B) || p.isDown(c.X);
 			case Validate: p.isDown(c.Y);
 			case Restart: p.isDown(c.back);
-			case PickColor(_): false;
+			case PickColor(_) | ToggleSound: false;
 		}
 	}
 }

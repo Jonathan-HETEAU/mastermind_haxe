@@ -30,7 +30,8 @@ d'adresse.
 | Poser la couleur | clic sur une case | Espace | A |
 | Effacer | clic sans couleur choisie | Retour arrière, Suppr | B ou X |
 | Valider la ligne | bouton V | Entrée | Y |
-| Recommencer | bouton R | R | Back / Select |
+| Recommencer | bouton ↻ | R | Back / Select |
+| Couper / remettre le son | | M | |
 
 En fin de partie, Entrée, Espace ou A relancent une partie.
 
@@ -73,6 +74,20 @@ procédural et reproductible (il faut Pillow et numpy) :
 
 Les polices bitmap sont tirées de [Playfair Display](https://github.com/clauseggers/Playfair-Display)
 (licence SIL Open Font License, voir `tools/art/fonts/OFL.txt`).
+
+## Sons
+
+Les sons sont synthétisés par modélisation physique : chaque matière vibre selon ses propres
+modes amortis, les chocs rebondissent comme de vrais objets, et une courte réverbération place
+le tout dans une petite pièce boisée. Pierre polie qui tombe et rebondit dans une coupelle de
+marbre cerclée de laiton, pierres qui s'entrechoquent sur le velours, déclic du bouton en
+laiton, fiches dorées et argentées qui tintent une à une, clé et volet en noyer qui glisse,
+boîte à musique pour la victoire, gong de pendule pour la défaite, pierres ramassées dans le
+coffret pour une nouvelle partie.
+
+Les fichiers de `res/sound` sont générés, de façon reproductible (il faut numpy) :
+
+`python3 tools/audio/make_sounds.py`
 
 ## Capture d'écran
 

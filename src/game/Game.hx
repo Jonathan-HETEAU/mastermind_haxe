@@ -62,6 +62,16 @@ class Game {
 	private var board:Object;
 	/** The player closed the end of game panel to look at the board. **/
 	private var endPanelHidden:Bool = false;
+	/**
+		The pegs of the last validated row still to show: they appear one by one, each with its
+		sound, and the end of the game (lid, secret, panel) waits for them.
+	**/
+	private var pegsToReveal:Int = 0;
+	private var revealDelay:Float = 0;
+
+	/** Seconds between the button and the first peg, then between two pegs. **/
+	private static var FIRST_PEG_DELAY = 0.35;
+	private static var PEG_INTERVAL = 0.17;
 
 	private var gameController:GameController;
 	private var scene:Scene;
@@ -157,6 +167,7 @@ class Game {
 			}
 			interaction.onClick = function(event:hxd.Event) {
 				this.currentPion = Some(color);
+				Audio.play(Pick);
 				redraw();
 			}
 		}
@@ -191,13 +202,52 @@ class Game {
 		bitmap.x = RESULT_SIZE + (CELL_SIZE * CODE_SIZE);
 		var interaction = new h2d.Interactive(CELL_SIZE, CELL_SIZE, bitmap);
 		interaction.onClick = function(event:hxd.Event) {
-			this.gameController.restart();
+			restart();
 		}
 	}
 
 	private function drawMenu() {}
 
-	public function update() {}
+	/** Reveals the pegs one by one, then the end of the game. **/
+	public function update(dt:Float) {
+		if (pegsToReveal == 0)
+			return;
+		revealDelay -= dt;
+		while (pegsToReveal > 0 && revealDelay <= 0) {
+			var row = mastermind.tries[mastermind.tries.length - 1];
+			var index = row.good + row.bad - pegsToReveal;
+			Audio.play(index < row.good ? PegGood : PegBad);
+			pegsToReveal--;
+			revealDelay += PEG_INTERVAL;
+			if (pegsToReveal == 0)
+				endOfRow();
+			redraw();
+		}
+	}
+
+	/** Once the pegs of a row are shown: if the game is over, the lid opens on the secret. **/
+	private function endOfRow() {
+		switch mastermind.state {
+			case Won:
+				Audio.play(Lid, 0.25);
+				Audio.play(Win, 0.9);
+			case Lost:
+				Audio.play(Lid, 0.25);
+				Audio.play(Lose, 0.9);
+			case Play:
+		}
+	}
+
+	private function restart() {
+		Audio.cancel();
+		Audio.play(Restart);
+		this.gameController.restart();
+	}
+
+	/** Whether the pegs of the last row are still appearing. **/
+	private function revealing():Bool {
+		return pegsToReveal > 0;
+	}
 
 	/** The rows fill from the bottom: try `i` is on screen row `NBR_TRIES - 1 - i`. **/
 	private static function rowY(tryIndex:Int):Float {
@@ -214,16 +264,28 @@ class Game {
 
 	/** Puts the selected color in a cell (or empties it when none is selected), then moves the cursor after it. **/
 	private function placeAt(column:Int) {
-		mastermind.place(column, this.currentPion);
+		var before = mastermind.current[column];
+		for (event in mastermind.place(column, this.currentPion))
+			switch event {
+				case PionPlaced(_, _):
+					Audio.play(Place);
+				case PionRemoved(_):
+					Audio.play(before == None ? Invalid : Remove);
+				default:
+			}
 		cursor = currentPion == None ? column : Std.int(Math.min(column + 1, CODE_SIZE - 1));
 	}
 
 	/** An action of the keyboard or of a gamepad, from `Controls`. **/
 	public function onAction(action:Controls.Action) {
+		if (action == ToggleSound) {
+			Audio.on = !Audio.on;
+			return;
+		}
 		if (mastermind.state != Play) {
 			switch action {
-				case Validate | Place | Restart:
-					this.gameController.restart();
+				case Validate | Place | Restart if (!revealing()):
+					restart();
 				default:
 			}
 			return;
@@ -231,8 +293,10 @@ class Game {
 		switch action {
 			case Left:
 				cursor = (cursor + CODE_SIZE - 1) % CODE_SIZE;
+				Audio.play(Move);
 			case Right:
 				cursor = (cursor + 1) % CODE_SIZE;
+				Audio.play(Move);
 			case PrevColor:
 				selectColor(-1);
 			case NextColor:
@@ -243,17 +307,21 @@ class Game {
 			case Place:
 				if (currentPion != None)
 					placeAt(cursor);
+				else
+					Audio.play(Invalid);
 			case Erase:
 				// Like a backspace: on an empty cell, erase the one before.
 				if (mastermind.current[cursor] == None && cursor > 0)
 					cursor--;
+				Audio.play(mastermind.current[cursor] == None ? Invalid : Remove);
 				mastermind.place(cursor, None);
 			case Validate:
 				validate();
 				return;
 			case Restart:
-				this.gameController.restart();
+				restart();
 				return;
+			case ToggleSound:
 		}
 		redraw();
 	}
@@ -266,13 +334,21 @@ class Game {
 			case None: step > 0 ? 0 : colors.length - 1;
 		}
 		currentPion = Some(colors[index]);
+		Audio.play(Pick);
 	}
 
 	private function validate() {
+		if (!mastermind.isComplete()) {
+			Audio.play(Invalid);
+			return;
+		}
+		Audio.play(Button);
 		for (event in mastermind.validate())
 			switch event {
-				case RowValidated(_, _):
+				case RowValidated(good, bad):
 					cursor = 0;
+					pegsToReveal = good + bad;
+					revealDelay = FIRST_PEG_DELAY;
 				case GameWon:
 					trace('game won in ${mastermind.tries.length} tries');
 				case GameLost:
@@ -297,10 +373,14 @@ class Game {
 		for (i => row in mastermind.tries) {
 			for (c => color in row.code)
 				drawPion(color, RESULT_SIZE + c * CELL_SIZE, rowY(i));
-			drawResult(row, rowY(i));
+			var last = i == mastermind.tries.length - 1;
+			drawResult(row, rowY(i), last ? pegsToReveal : 0);
 		}
 
-		if (mastermind.state == Play) {
+		if (mastermind.state != Play && revealing()) {
+			// The game is over, but the pegs of the last row are still appearing.
+			new Bitmap(TILE_LID, board).setPosition(RESULT_SIZE - 12, -12);
+		} else if (mastermind.state == Play) {
 			// The lid is a little larger than the holes it hides: 12 pixels on each side.
 			new Bitmap(TILE_LID, board).setPosition(RESULT_SIZE - 12, -12);
 			var y = rowY(mastermind.tries.length);
@@ -366,7 +446,7 @@ class Game {
 			replay.textColor = GOLD;
 		}
 		interaction.onClick = function(event:hxd.Event) {
-			this.gameController.restart();
+			restart();
 		}
 		drawText("ou Entrée, Espace, manette A", hxd.Res.fonts.small.toFont(), 0xB8A888, 338, width, panel);
 	}
@@ -387,10 +467,11 @@ class Game {
 		new Bitmap(TILE_PIONS[color], board).setPosition(x, y);
 	}
 
-	/** The good (gold) and bad (silver) pegs of a validated row, two by two. **/
-	private function drawResult(row:Row, y:Float) {
+	/** The good (gold) and bad (silver) pegs of a validated row, two by two, but the `hidden` last ones. **/
+	private function drawResult(row:Row, y:Float, hidden:Int) {
 		var x = RESULT_SIZE + CODE_SIZE * CELL_SIZE;
 		var pegs = [for (i in 0...row.good) TILE_RES_GOOD].concat([for (i in 0...row.bad) TILE_RES_BAD]);
+		pegs.resize(pegs.length - hidden);
 		for (i => tile in pegs)
 			new Bitmap(tile, board).setPosition(x + (i % 2) * RESULT_SIZE, y + Std.int(i / 2) * RESULT_SIZE);
 	}
